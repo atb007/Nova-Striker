@@ -1,0 +1,35 @@
+---
+description: How to update the BMAD installation used by this workspace
+alwaysApply: false
+---
+
+# Updating BMAD from this workspace
+
+BMAD agents and commands are **symlinked** from another project into this workspace:
+
+- **Commands**: `MobileGame/.cursor/commands` → `WebApp/.cursor/commands`
+- **BMAD source**: lives in `WebApp/_bmad` at  
+  `/Users/udai.deori/Desktop/CursorAI/VST/Matilda/WebApp`
+
+To **update BMAD** (pull latest modules and refresh slash commands) from this workspace:
+
+1. Run the project script:
+   ```bash
+   ./scripts/update-bmad.sh
+   ```
+   Or from repo root:
+   ```bash
+   bash scripts/update-bmad.sh
+   ```
+
+2. The script runs `npx bmad-method install --directory <WebApp> --action quick-update --yes`.  
+   If that fails (e.g. first-time or broken state), run a full update in WebApp:
+   ```bash
+   npx bmad-method install --directory /Users/udai.deori/Desktop/CursorAI/VST/Matilda/WebApp --action update --yes
+   ```
+
+3. After updating, the symlinked commands in this workspace automatically reflect WebApp’s `.cursor/commands`. Reload the Cursor window if new slash commands don’t appear.
+
+### Troubleshooting
+
+- **"You have not agreed to the Xcode license agreements"** when cloning (e.g. BMB module): Accept the Xcode license once on this Mac: run `sudo xcodebuild -license` in Terminal, scroll to the end, and type `agree`. Then re-run `./scripts/update-bmad.sh`.

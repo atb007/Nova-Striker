@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Nova Striker — Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #020617;
+      --cyan: #22d3ee;
+      --cyan-dim: rgba(34, 211, 238, 0.6);
+      --pink: #f472b6;
+      --blue: #2563eb;
+      --white: #fff;
+      --border-cyan: rgba(34, 211, 238, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow-x: hidden; }
+
+    body {
+      font-family: 'Nunito', 'Nimbus Sans', sans-serif;
+      background: var(--bg);
+      color: var(--white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Main container — matches Figma 390×884 feel */
+    .body {
+      width: 100%;
+      max-width: 390px;
+      min-height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+    }
+
+    /* Game scene background with radial gradient */
+    .scene {
+      flex: 1 0 0;
+      min-height: 0;
+      position: relative;
+      width: 100%;
+      background: radial-gradient(ellipse 48.31em 48.31em at 50% 50%, rgba(15,23,42,1) 0%, var(--bg) 100%);
+    }
+
+    /* Parallax stars — Figma: single soft gradient, no speckles */
+    .stars {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 884px;
+      opacity: 0.3;
+      background-image: radial-gradient(ellipse 0.39em 0.884em at 50% 50%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+    }
+
+    /* Gradient overlay */
+    .gradient {
+      position: absolute;
+      inset: 0;
+      opacity: 0.7;
+      background: radial-gradient(ellipse 0.39em 0.884em at 50% 50%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
+      pointer-events: none;
+    }
+
+    /* Central ship + logo section */
+    .hero {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 76px;
+      bottom: 286px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-inner {
+      position: relative;
+      width: 302px;
+      max-width: 90%;
+      transform: translateY(-24px);
+    }
+
+    /* Outer halo — gentle pulse */
+    .halo {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 453px;
+      max-width: 160%;
+      height: 204px;
+      transform: translate(-50%, -50%);
+      background: var(--cyan);
+      filter: blur(50px);
+      opacity: 0.2;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: 0.25; transform: translate(-50%, -50%) scale(1.05); }
+    }
+
+    .ship-img {
+      position: relative;
+      width: 100%;
+      height: auto;
+      max-width: 320px;
+      margin: 0 auto;
+      display: block;
+      filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.4));
+    }
+
+    /* Logo text */
+    .logo {
+      position: relative;
+      text-align: center;
+      margin-top: -2px;
+    }
+
+    .logo-nova {
+      font-size: clamp(36px, 12vw, 60px);
+      font-weight: 800;
+      font-style: italic;
+      line-height: 1;
+      letter-spacing: -3px;
+      text-transform: uppercase;
+      background: linear-gradient(to bottom, var(--white) 0%, var(--cyan) 50%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 15px rgba(34, 211, 238, 0.8);
+      margin-bottom: -20px;
+    }
+
+    .logo-striker {
+      font-size: clamp(42px, 14vw, 72px);
+      font-weight: 800;
+      font-style: italic;
+      line-height: 1;
+      letter-spacing: -3.6px;
+      text-transform: uppercase;
+      background: linear-gradient(to top, var(--pink) 0%, var(--white) 50%, var(--white) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 20px rgba(244, 114, 182, 0.6);
+    }
+
+    /* Status line */
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 20px;
+      opacity: 0.5;
+    }
+    .status-line {
+      width: 48px;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--cyan));
+    }
+    .status-line:last-of-type {
+      background: linear-gradient(to left, transparent, var(--cyan));
+    }
+    .status-text {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+
+    /* Main CTA — BATTLE button */
+    .cta-section {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 48px;
+      padding: 0 24px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .btn-battle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 320px;
+      height: 80px;
+      background: rgba(30, 58, 138, 0.2);
+      border: 1px solid var(--border-cyan);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+    }
+    .btn-battle:hover {
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.5), inset 0 0 30px rgba(34, 211, 238, 0.08);
+      transform: scale(1.02);
+    }
+    .btn-battle:active {
+      transform: scale(0.98);
+    }
+
+    /* Corner brackets */
+    .btn-battle::before,
+    .btn-battle::after { content: ''; position: absolute; width: 16px; height: 16px; border-color: var(--cyan); border-style: solid; }
+    .btn-battle::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+    .btn-battle::after { top: 0; right: 0; border-width: 2px 2px 0 0; }
+    .corner-b { position: absolute; width: 16px; height: 16px; border-color: var(--cyan); border-style: solid; bottom: 0; }
+    .corner-b.l { left: 0; border-width: 0 0 2px 2px; }
+    .corner-b.r { right: 0; border-width: 0 2px 2px 0; }
+
+    .btn-label {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2.4px;
+      text-transform: uppercase;
+      color: var(--cyan-dim);
+      margin-bottom: 4px;
+    }
+    .btn-title {
+      font-size: 30px;
+      font-weight: 800;
+      font-style: italic;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--white);
+      text-shadow: 0 0 10px var(--cyan);
+    }
+
+    /* Nav: Points, Vouchers, Settings — Figma 2154:466 */
+    .nav {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 384px;
+      padding: 0 8px;
+      gap: 0;
+    }
+
+    .nav-btn {
+      flex: 1 0 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 29px 4px;
+      position: relative;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: inherit;
+      font: inherit;
+      transition: opacity 0.2s;
+    }
+    .nav-btn:hover { opacity: 0.9; }
+
+    .nav-btn .nav-icon {
+      width: 24px;
+      height: 24px;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
+    .nav-btn.points .nav-icon { filter: drop-shadow(0 0 1px rgba(34,211,238,0.8)); }
+    .nav-btn.vouchers .nav-icon { filter: drop-shadow(0 0 1px rgba(244,114,182,0.8)); }
+    .nav-btn.settings .nav-icon { opacity: 0.8; }
+
+    .nav-btn .nav-label {
+      font-size: 8px;
+      font-weight: 700;
+      line-height: 12px;
+      letter-spacing: -0.4px;
+      text-transform: uppercase;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .nav-btn.points .nav-label { color: rgba(34, 211, 238, 0.8); }
+    .nav-btn.vouchers .nav-label { color: rgba(244, 114, 182, 0.8); }
+    .nav-btn.settings .nav-label { color: rgba(255, 255, 255, 0.5); }
+
+    /* Figma: 8×8 corner brackets, top-left and bottom-right only */
+    .nav-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 8px;
+      height: 8px;
+      border-style: solid;
+      border-width: 1px 0 0 1px;
+    }
+    .nav-btn .nav-corner {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 8px;
+      height: 8px;
+      border-style: solid;
+      border-width: 0 1px 1px 0;
+      pointer-events: none;
+    }
+    .nav-btn.points::before,
+    .nav-btn.points .nav-corner { border-color: var(--cyan); }
+    .nav-btn.vouchers::before,
+    .nav-btn.vouchers .nav-corner { border-color: var(--pink); }
+    .nav-btn.settings::before,
+    .nav-btn.settings .nav-corner { border-color: rgba(255,255,255,0.4); }
+
+    /* Footer */
+    .footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 8px 16px;
+      text-align: center;
+      opacity: 0.3;
+    }
+    .footer span {
+      font-size: 8px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #eaeaea;
+    }
+
+    /* Decorative vector (optional placeholders if no img) */
+    .deco {
+      position: absolute;
+      left: 50%;
+      top: 99px;
+      transform: translateX(-50%);
+      width: 227px;
+      height: 20px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="body" data-name="Body">
+    <div class="scene">
+      <div class="stars" aria-hidden="true"></div>
+      <div class="gradient" aria-hidden="true"></div>
+
+      <section class="hero">
+        <div class="hero-inner">
+          <div class="halo" aria-hidden="true"></div>
+          <img
+            class="ship-img"
+            src="https://www.figma.com/api/mcp/asset/8ff8759c-c0c2-4787-a2eb-7ec420e5899e"
+            alt=""
+            width="320"
+            height="204"
+          />
+          <div class="logo">
+            <div class="logo-nova">Nova</div>
+            <div class="logo-striker">Striker</div>
+          </div>
+          <div class="status">
+            <div class="status-line"></div>
+            <span class="status-text">Combat system ready</span>
+            <div class="status-line"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta-section">
+        <a href="gameplay.html" class="btn-battle" id="btnBattle">
+          <span class="corner-b l"></span>
+          <span class="corner-b r"></span>
+          <span class="btn-label">Initialize mission</span>
+          <span class="btn-title">Battle</span>
+        </a>
+        <nav class="nav">
+          <button type="button" class="nav-btn points" aria-label="Points">
+            <img class="nav-icon" src="https://www.figma.com/api/mcp/asset/8ded3323-7d81-4048-8710-3c2f2dd654a9" alt="" width="24" height="24" />
+            <span class="nav-label">points</span>
+            <span class="nav-corner" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="nav-btn vouchers" aria-label="Vouchers">
+            <img class="nav-icon" src="https://www.figma.com/api/mcp/asset/d33be5aa-d936-45d2-8d91-6a7a32364221" alt="" width="24" height="24" />
+            <span class="nav-label">Vouchers</span>
+            <span class="nav-corner" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="nav-btn settings" aria-label="Settings">
+            <img class="nav-icon" src="https://www.figma.com/api/mcp/asset/642b2f7e-96cc-4209-8ff6-3e343666e298" alt="" width="24" height="24" />
+            <span class="nav-label">settings</span>
+            <span class="nav-corner" aria-hidden="true"></span>
+          </button>
+        </nav>
+      </section>
+
+      <footer class="footer">
+        <span>v1.0.4-stable // jio engage</span>
+      </footer>
+    </div>
+  </div>
+  <script>
+    document.getElementById('btnBattle').addEventListener('click', function(e) {
+      window.location.href = 'gameplay.html';
+      e.preventDefault();
+    });
+  </script>
+</body>
+</html>

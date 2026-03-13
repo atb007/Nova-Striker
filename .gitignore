@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.so
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.idea/
+*.swp
+*.swo
+*~
+
+# Optional: uncomment if you don't want to track these
+# _bmad-output/
+# Screenshots/
+# vids/

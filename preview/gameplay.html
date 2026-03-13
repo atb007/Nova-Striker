@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Nova Striker — Gameplay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-game: #0a0604;
+      --orange: #ec5b13;
+      --orange-dim: rgba(236, 91, 19, 0.6);
+      --cyan: #22d3ee;
+      --cyan-glow: rgba(34, 211, 238, 0.8);
+      --hud-bg: rgba(34, 22, 16, 0.8);
+      --hud-border: rgba(236, 91, 19, 0.2);
+      --text-rank: #ec5b13;
+      --text-level: #f1f5f9;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: var(--bg-game); }
+
+    body {
+      font-family: 'Public Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .game-wrap {
+      width: 100%;
+      max-width: 390px;
+      height: 100vh;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-game);
+      position: relative;
+    }
+
+    /* Top HUD — Figma 2154:950 */
+    .hud-top {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 16px 17px;
+      background: var(--hud-bg);
+      border-bottom: 1px solid var(--hud-border);
+      backdrop-filter: blur(6px);
+      z-index: 2;
+    }
+    .hud-rank-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: var(--text-rank);
+      line-height: 12px;
+    }
+    .hud-level {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-level);
+      line-height: 20px;
+    }
+
+    /* Gameplay area — canvas fills rest */
+    .game-area {
+      flex: 1 1 0;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 69px at 20% 30%, rgba(236,91,19,0.05) 0%, transparent 40%),
+        radial-gradient(ellipse 69px at 80% 70%, rgba(236,91,19,0.08) 0%, transparent 50%),
+        var(--bg-game);
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrap">
+    <header class="hud-top">
+      <div>
+        <div class="hud-rank-label">RANK</div>
+        <div class="hud-level">LVL 01</div>
+      </div>
+    </header>
+    <div class="game-area">
+      <canvas id="gameCanvas"></canvas>
+    </div>
+  </div>
+  <script>
+(function() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let width, height, dpr;
+
+  const SHIP_W = 96;
+  const SHIP_H = 112;
+  const PROJECTILE_W = 4;
+  const PROJECTILE_H = 28;
+  const PROJECTILE_SPEED = 16;
+  const SPREAD_ANGLE_DEG = 18;
+  const FIRE_INTERVAL_MS = 240;
+  const ENEMY_DIAMOND_SIZE = 40;
+  const ENEMY_CIRCLE_R = 24;
+  const EXPLOSION_DURATION_MS = 280;
+  const EXPLOSION_MAX_SIZE = 28;
+  const ENEMY_SPEED = 9;
+  const SPAWN_INTERVAL_MS = 2500;
+
+  const SMOOTH = 0.12;
+  const SHIP_Y_MIN = 0.28;
+  const SHIP_Y_RANGE = 0.58;
+
+  let playerX = 0.5;
+  let playerY = 0.5;
+  let targetPlayerX = 0.5;
+  let targetPlayerY = 0.5;
+  let projectiles = [];
+  let enemies = [];
+  let explosions = [];
+  let lastFire = 0;
+  let lastSpawn = 0;
+  let rafId;
+  let pointerX = 0;
+  let pointerY = 0;
+  let pointerActive = false;
+  let pointerDownX = 0;
+  let pointerDownY = 0;
+  let muzzleFlash = { t: 999, duration: 50 };
+  let gameTime = 0;
+
+  const WEAPON_LASER = 'laser';
+  const WEAPON_FIRE = 'fire';
+  const WEAPON_ELECTRIC = 'electric';
+  let currentWeapon = WEAPON_LASER;
+  let electricTargets = [];
+  const ELECTRIC_MAX_TARGETS = 3;
+  const ELECTRIC_RANGE_X = 0.45;
+  const FIRE_STREAM_WIDTH = 38;
+  const FIRE_CURVE_STRENGTH = 28;
+  let prevShipX = 0;
+  let prevShipY = 0;
+  let shipVelX = 0;
+  let shipVelY = 0;
+  const SHIP_VEL_SMOOTH = 0.25;
+  let fireLagX = 0;
+  const FIRE_LAG_SMOOTH = 0.1;
+
+  const shipImg = new Image();
+  shipImg.crossOrigin = 'anonymous';
+  shipImg.src = 'https://www.figma.com/api/mcp/asset/1348fe1f-6ffd-4d46-8d81-a3d4206fcd03';
+
+  const NEBULA_SCROLL_SPEED = 28;
+  const NEBULA_IMAGE_SCROLL_SPEED = 0.42;
+  const NEBULA_IMAGE_RES_SCALE = 1.35;
+  const NEBULA_COUNT = 9;
+  let nebulae = [];
+  let nebulaScrollOffset = 0;
+  let nebulaImageScrollOffset = 0;
+  // Optional background image: use path relative to this page, e.g. 'assets/clouds 1.png' (file in preview/assets/)
+  const NEBULA_BG_IMAGE_URL = 'assets/clouds 1.png';
+  const bgCloudsImg = new Image();
+  let bgCloudsImgReady = false;
+  if (NEBULA_BG_IMAGE_URL) {
+    try {
+      bgCloudsImg.src = new URL(NEBULA_BG_IMAGE_URL, window.location.href).href;
+      if (bgCloudsImg.src.startsWith('http')) bgCloudsImg.crossOrigin = 'anonymous';
+      bgCloudsImg.onload = function() { bgCloudsImgReady = true; };
+      bgCloudsImg.onerror = function() { console.warn('Nebula BG image failed to load:', bgCloudsImg.src); };
+    } catch (e) {
+      bgCloudsImg.src = NEBULA_BG_IMAGE_URL;
+      bgCloudsImg.onload = function() { bgCloudsImgReady = true; };
+      bgCloudsImg.onerror = function() { console.warn('Nebula BG image failed to load:', NEBULA_BG_IMAGE_URL); };
+    }
+  }
+  const NEBULA_PALETTE = [
+    'rgba(100, 60, 160, 0.14)',
+    'rgba(160, 80, 180, 0.12)',
+    'rgba(180, 70, 140, 0.13)',
+    'rgba(50, 140, 180, 0.11)',
+    'rgba(60, 170, 170, 0.12)',
+    'rgba(120, 100, 200, 0.1)',
+    'rgba(140, 50, 150, 0.11)',
+    'rgba(40, 160, 200, 0.1)',
+  ];
+
+  function seed(s) {
+    const x = Math.sin(s * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  function initNebulae() {
+    if (!width || !height) return;
+    nebulae = [];
+    const h = height;
+    const w = width;
+    for (let i = 0; i < NEBULA_COUNT; i++) {
+      const s = i * 1.7 + 0.3;
+      nebulae.push({
+        x: w * (0.1 + seed(s) * 0.8),
+        y: -h * 0.2 + (h * 1.4 * seed(s + 1)) / NEBULA_COUNT * i,
+        r: 90 + seed(s + 2) * 120,
+        color: NEBULA_PALETTE[Math.floor(seed(s + 3) * NEBULA_PALETTE.length)],
+        seed: s,
+      });
+    }
+  }
+
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = canvas.getBoundingClientRect();
+    width = rect.width;
+    height = rect.height;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    initNebulae();
+  }
+
+  function getShipCenterY() {
+    return height * (SHIP_Y_MIN + SHIP_Y_RANGE * (1 - playerY));
+  }
+
+  function addProjectileSpread() {
+    const cx = width * playerX;
+    const totalShipH = (SHIP_H + 56) * SHIP_SCALE;
+    const y = getShipCenterY() - totalShipH / 2 - 18;
+    const rad = (SPREAD_ANGLE_DEG * Math.PI) / 180;
+    const vxL = -PROJECTILE_SPEED * Math.sin(rad);
+    const vxR = PROJECTILE_SPEED * Math.sin(rad);
+    const vy = -PROJECTILE_SPEED * Math.cos(rad);
+    projectiles.push(
+      { x: cx - PROJECTILE_W / 2, y, w: PROJECTILE_W, h: PROJECTILE_H, vx: 0, vy },
+      { x: cx - PROJECTILE_W / 2, y, w: PROJECTILE_W, h: PROJECTILE_H, vx: vxL, vy },
+      { x: cx - PROJECTILE_W / 2, y, w: PROJECTILE_W, h: PROJECTILE_H, vx: vxR, vy },
+    );
+  }
+
+  function addEnemy() {
+    const cols = 4;
+    const col = Math.floor(Math.random() * cols);
+    const pad = width * 0.12;
+    const gap = (width - pad * 2 - ENEMY_DIAMOND_SIZE * cols) / (cols - 1) || 0;
+    const x = pad + col * (ENEMY_DIAMOND_SIZE + gap) + ENEMY_DIAMOND_SIZE / 2;
+    const type = Math.random() < 0.6 ? 'diamond' : 'circle';
+    enemies.push({
+      x,
+      y: 50,
+      type,
+      size: type === 'diamond' ? ENEMY_DIAMOND_SIZE : ENEMY_CIRCLE_R * 2,
+      health: 1,
+    });
+  }
+
+  function addExplosion(x, y) {
+    explosions.push({
+      x,
+      y,
+      t: 0,
+      duration: EXPLOSION_DURATION_MS,
+    });
+  }
+
+  function update(now) {
+    const dt = Math.min(1/30, (now - (update.last || now)) / 1000) * 60;
+    update.last = now;
+
+    if (pointerActive) {
+      targetPlayerX = Math.max(0.1, Math.min(0.9, pointerX / width));
+      targetPlayerY = Math.max(0, Math.min(1, 1 - pointerY / height));
+    }
+    playerX += (targetPlayerX - playerX) * SMOOTH;
+    playerY += (targetPlayerY - playerY) * SMOOTH;
+
+    const shipX = width * playerX;
+    const shipY = getShipCenterY();
+    if (prevShipX === 0 && prevShipY === 0) {
+      prevShipX = shipX;
+      prevShipY = shipY;
+    }
+    shipVelX += (shipX - prevShipX - shipVelX) * SHIP_VEL_SMOOTH;
+    shipVelY += (shipY - prevShipY - shipVelY) * SHIP_VEL_SMOOTH;
+    prevShipX = shipX;
+    prevShipY = shipY;
+
+    gameTime = now;
+
+    if (currentWeapon === WEAPON_LASER) {
+      if (now - lastFire > FIRE_INTERVAL_MS) {
+        lastFire = now;
+        addProjectileSpread();
+        muzzleFlash.t = 0;
+      }
+      if (muzzleFlash.t < muzzleFlash.duration) muzzleFlash.t += 16;
+    }
+
+    projectiles.forEach(p => {
+      p.x += (p.vx || 0) * dt;
+      p.y += (p.vy !== undefined ? p.vy : -PROJECTILE_SPEED) * dt;
+    });
+    projectiles = projectiles.filter(p => p.y + p.h > 0 && p.x + p.w > 0 && p.x < width);
+
+    enemies.forEach(e => { e.y += ENEMY_SPEED * dt; });
+    enemies = enemies.filter(e => e.y < height + 50);
+
+    if (now - lastSpawn > SPAWN_INTERVAL_MS) {
+      lastSpawn = now;
+      const multi = Math.random();
+      const count = multi < 0.2 ? 3 : multi < 0.45 ? 2 : 1;
+      for (let i = 0; i < count; i++) addEnemy();
+    }
+
+    if (currentWeapon === WEAPON_LASER) {
+      projectiles = projectiles.filter(p => {
+        let hit = false;
+        enemies = enemies.filter(e => {
+          const px = p.x + p.w / 2;
+          const py = p.y + p.h / 2;
+          const half = e.size / 2;
+          const inRect = px >= e.x - half && px <= e.x + half && py >= e.y - half && py <= e.y + half;
+          if (inRect) {
+            e.health--;
+            hit = true;
+            addExplosion(e.x, e.y);
+            return false;
+          }
+          return true;
+        });
+        return !hit;
+      });
+    }
+
+    if (currentWeapon === WEAPON_FIRE) {
+      const totalShipH = (SHIP_H + 56) * SHIP_SCALE;
+      const streamOriginY = getShipCenterY() - totalShipH / 2;
+      const streamCenterX = width * playerX;
+      const curveW = Math.abs(fireLagX);
+      const streamLeft = Math.min(streamCenterX, streamCenterX - fireLagX) - FIRE_STREAM_WIDTH / 2 - curveW * 0.5;
+      const streamRight = Math.max(streamCenterX, streamCenterX - fireLagX) + FIRE_STREAM_WIDTH / 2 + curveW * 0.5;
+      enemies = enemies.filter(e => {
+        const half = e.size / 2;
+        const overlap = !(e.x + half < streamLeft || e.x - half > streamRight || e.y + half < 0 || e.y - half > streamOriginY);
+        if (overlap) {
+          addExplosion(e.x, e.y);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    if (currentWeapon === WEAPON_ELECTRIC) {
+      const shipX = width * playerX;
+      const shipY = getShipCenterY();
+      const totalShipH = (SHIP_H + 56) * SHIP_SCALE;
+      const originY = shipY - totalShipH / 2 - 10;
+      const inRange = enemies.filter(e => e.y < shipY && Math.abs(e.x - shipX) < width * ELECTRIC_RANGE_X);
+      inRange.sort((a, b) => {
+        const da = (a.x - shipX) ** 2 + (a.y - originY) ** 2;
+        const db = (b.x - shipX) ** 2 + (b.y - originY) ** 2;
+        return da - db;
+      });
+      const toHit = inRange.slice(0, ELECTRIC_MAX_TARGETS);
+      electricTargets = toHit.map(e => ({ x: e.x, y: e.y }));
+      toHit.forEach(e => addExplosion(e.x, e.y));
+      enemies = enemies.filter(e => !toHit.includes(e));
+    } else {
+      electricTargets = [];
+    }
+
+    const targetLagX = shipVelX * FIRE_CURVE_STRENGTH;
+    fireLagX += (targetLagX - fireLagX) * FIRE_LAG_SMOOTH;
+
+    explosions.forEach(ex => { ex.t += 16; });
+    explosions = explosions.filter(ex => ex.t < ex.duration);
+
+    nebulaScrollOffset += NEBULA_SCROLL_SPEED * (dt / 60);
+    nebulaImageScrollOffset += NEBULA_SCROLL_SPEED * NEBULA_IMAGE_SCROLL_SPEED * (dt / 60);
+    nebulae.forEach(n => {
+      n.y += NEBULA_SCROLL_SPEED * (dt / 60);
+      if (n.y - n.r > height + 80) {
+        n.y = -n.r - 80 * seed(n.seed + gameTime * 0.001);
+        n.x = width * (0.1 + seed(n.seed + 0.5) * 0.8);
+        n.color = NEBULA_PALETTE[Math.floor(seed(n.seed + 1.1 + gameTime * 0.0001) * NEBULA_PALETTE.length)];
+      }
+    });
+  }
+
+  const SHIP_SCALE = 0.56;
+
+  function noise1(t, seed) {
+    const x = (t * 0.01 + seed * 7.3) % 1;
+    return x * x * (3 - 2 * x);
+  }
+
+  function drawFireThruster(baseX, baseY, baseW, t) {
+    const h = 26 + 6 * Math.sin(t * 0.025) + 4 * Math.sin(t * 0.017);
+    const w = baseW + 2 * Math.sin(t * 0.02);
+    ctx.save();
+    for (let layer = 0; layer < 3; layer++) {
+      const ly = layer === 0 ? 0 : layer === 1 ? 0.25 : 0.5;
+      const lh = h * (1 - ly * 0.6);
+      const lw = w * (0.7 + 0.3 * (1 - ly));
+      const lx = baseX + (baseW - lw) / 2 + 3 * Math.sin(t * 0.03 + layer * 2.1);
+      const grad = ctx.createLinearGradient(lx + lw / 2, baseY, lx + lw / 2, baseY + lh);
+      if (layer === 0) {
+        grad.addColorStop(0, 'rgba(200, 245, 255, 0.95)');
+        grad.addColorStop(0.4, 'rgba(100, 220, 255, 0.9)');
+        grad.addColorStop(0.8, 'rgba(34, 211, 238, 0.6)');
+        grad.addColorStop(1, 'rgba(20, 150, 200, 0)');
+      } else if (layer === 1) {
+        grad.addColorStop(0, 'rgba(150, 235, 255, 0.7)');
+        grad.addColorStop(0.5, 'rgba(34, 211, 238, 0.6)');
+        grad.addColorStop(1, 'rgba(10, 120, 180, 0)');
+      } else {
+        grad.addColorStop(0, 'rgba(34, 211, 238, 0.5)');
+        grad.addColorStop(0.6, 'rgba(30, 180, 220, 0.4)');
+        grad.addColorStop(1, 'transparent');
+      }
+      ctx.fillStyle = grad;
+      const jitter = 2 * Math.sin(t * 0.04 + layer * 2.1);
+      ctx.beginPath();
+      ctx.moveTo(lx + jitter, baseY);
+      ctx.lineTo(lx + lw - jitter, baseY);
+      ctx.lineTo(lx + lw * 0.9 + 3 * Math.sin(t * 0.02), baseY + lh);
+      ctx.lineTo(lx + lw * 0.1 + 2 * Math.sin(t * 0.015), baseY + lh);
+      ctx.closePath();
+      ctx.fill();
+    }
+    for (let i = 0; i < 6; i++) {
+      const py = baseY + (h * (0.2 + 0.7 * noise1(t * 0.05 + i * 3, i))) % (h * 0.8);
+      const px = baseX + baseW / 2 + (noise1(t * 0.03 + i, i + 1) - 0.5) * baseW * 0.8;
+      const pr = 1.5 + noise1(t * 0.02 + i * 2, i) * 1.5;
+      const pa = 0.4 + 0.4 * Math.sin(t * 0.05 + i);
+      ctx.fillStyle = `rgba(150, 230, 255, ${pa})`;
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawShip() {
+    const shipCenterY = getShipCenterY();
+    const totalShipH = (SHIP_H + 56) * SHIP_SCALE;
+    const x = width * playerX - (SHIP_W * SHIP_SCALE) / 2;
+    const y = shipCenterY - totalShipH / 2;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(SHIP_SCALE, SHIP_SCALE);
+
+    const hullStretch = 1.22;
+    const hullH = SHIP_H * hullStretch;
+    const hullTop = SHIP_H - hullH;
+
+    // Main Body Hull shape per Figma 2154:991 — pointed nose, wider midsection, slight taper, broad flat stern
+    function hullPath(yTop, yBottom) {
+      const h = yBottom - yTop;
+      const t = (y) => yTop + (y / SHIP_H) * h;
+      const p = new Path2D();
+      p.moveTo(48, yTop);
+      p.lineTo(68, t(32));
+      p.lineTo(70, t(62));
+      p.lineTo(80, yBottom);
+      p.lineTo(16, yBottom);
+      p.lineTo(26, t(62));
+      p.lineTo(28, t(32));
+      p.closePath();
+      return p;
+    }
+
+    if (shipImg.complete && shipImg.naturalWidth) {
+      ctx.drawImage(shipImg, 0, 0, SHIP_W, SHIP_H, 0, hullTop, SHIP_W, hullH);
+      const hullOutline = hullPath(hullTop, SHIP_H);
+      ctx.shadowColor = 'rgba(236, 91, 19, 0.95)';
+      ctx.shadowBlur = 24;
+      ctx.strokeStyle = '#ec5b13';
+      ctx.lineWidth = 3;
+      ctx.stroke(hullOutline);
+      ctx.shadowBlur = 0;
+    } else {
+      const hull = hullPath(0, SHIP_H);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fill(hull);
+      ctx.shadowColor = 'rgba(236, 91, 19, 0.95)';
+      ctx.shadowBlur = 24;
+      ctx.strokeStyle = '#ec5b13';
+      ctx.lineWidth = 3;
+      ctx.stroke(hull);
+      ctx.shadowBlur = 0;
+    }
+
+    // Cockpit glass — Figma 2154:992 — vertical pill (24×48, top 16px), cyan border + inner gradient
+    const cgX = 48;
+    const cgTop = 16;
+    const cgW = 24;
+    const cgH = 48;
+    const cgR = cgW / 2;
+    const cgCyTop = cgTop + cgR;
+    const cgCyBot = cgTop + cgH - cgR;
+    ctx.beginPath();
+    ctx.moveTo(cgX - cgR, cgCyTop);
+    ctx.arc(cgX, cgCyTop, cgR, Math.PI, 0);
+    ctx.lineTo(cgX + cgR, cgCyBot);
+    ctx.arc(cgX, cgCyBot, cgR, 0, Math.PI);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+    ctx.fill();
+    const cgGrad = ctx.createLinearGradient(cgX, cgTop, cgX, cgTop + cgH);
+    cgGrad.addColorStop(0, 'rgba(34, 211, 238, 0.4)');
+    cgGrad.addColorStop(1, 'rgba(34, 211, 238, 0)');
+    ctx.fillStyle = cgGrad;
+    ctx.fill();
+    ctx.shadowColor = '#22d3ee';
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const wingW = 48;
+    const wingH = 56;
+    const wingY = (SHIP_H - 65) - wingH;
+
+    function wingPathLeft(ctx) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(wingW, 0);
+      ctx.lineTo(wingW, wingH);
+      ctx.lineTo(24, wingH);
+      ctx.quadraticCurveTo(0, wingH, 0, wingH - 24);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+    }
+    function wingPathRight(ctx) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(wingW, 0);
+      ctx.lineTo(wingW, wingH - 24);
+      ctx.quadraticCurveTo(wingW, wingH, wingW - 24, wingH);
+      ctx.lineTo(0, wingH);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+    }
+    // Outline path without top edge (left wing: left, bottom, right only)
+    function wingOutlineLeft(ctx) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, wingH - 24);
+      ctx.quadraticCurveTo(0, wingH, 24, wingH);
+      ctx.lineTo(wingW, wingH);
+      ctx.lineTo(wingW, 0);
+    }
+    function wingOutlineRight(ctx) {
+      ctx.beginPath();
+      ctx.moveTo(wingW, 0);
+      ctx.lineTo(wingW, wingH - 24);
+      ctx.quadraticCurveTo(wingW, wingH, wingW - 24, wingH);
+      ctx.lineTo(0, wingH);
+      ctx.lineTo(0, 0);
+    }
+    function wingTopEdge(ctx) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(wingW, 0);
+    }
+
+    ctx.save();
+    ctx.translate(-22, wingY + wingH);
+    ctx.rotate((12 * Math.PI) / 180);
+    ctx.fillStyle = 'transparent';
+    wingPathLeft(ctx);
+    ctx.fill();
+    ctx.strokeStyle = '#ec5b13';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'rgba(236, 91, 19, 0.95)';
+    ctx.shadowBlur = 28;
+    wingOutlineLeft(ctx);
+    ctx.stroke();
+    ctx.lineWidth = 0.4;
+    ctx.strokeStyle = '#ec5b13';
+    wingTopEdge(ctx);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 4;
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.8)';
+    roundRect(ctx, wingW - 16, 8, 8, 24, 4);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(SHIP_W + 22, wingY + wingH);
+    ctx.rotate((-12 * Math.PI) / 180);
+    ctx.translate(-wingW, 0);
+    ctx.fillStyle = 'transparent';
+    wingPathRight(ctx);
+    ctx.fill();
+    ctx.strokeStyle = '#ec5b13';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'rgba(236, 91, 19, 0.95)';
+    ctx.shadowBlur = 28;
+    wingOutlineRight(ctx);
+    ctx.stroke();
+    ctx.lineWidth = 0.4;
+    ctx.strokeStyle = '#ec5b13';
+    wingTopEdge(ctx);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 4;
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.8)';
+    roundRect(ctx, 8, 8, 8, 24, 4);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(236, 91, 19, 0.4)';
+    ctx.strokeStyle = 'rgba(236, 91, 19, 0.6)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, 32, SHIP_H - 24, 32, 16, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    drawFireThruster(16, SHIP_H, 16, gameTime);
+    drawFireThruster(64, SHIP_H, 16, gameTime);
+
+    const glowW = 28;
+    const glowH = 72;
+    const pulse = 0.55 + 0.3 * Math.sin(gameTime * 0.012) + 0.12 * Math.sin(gameTime * 0.031);
+    const sway = 2.5 * Math.sin(gameTime * 0.008);
+    const stretch = 1 + 0.1 * Math.sin(gameTime * 0.02);
+    ctx.save();
+    ctx.globalAlpha = 0.7 * pulse;
+    ctx.filter = 'blur(14px)';
+    const gFire = ctx.createLinearGradient(32, SHIP_H + 70, 32, SHIP_H - 4);
+    gFire.addColorStop(0, 'rgba(20, 150, 200, 0)');
+    gFire.addColorStop(0.35, 'rgba(34, 211, 238, 0.4)');
+    gFire.addColorStop(0.65, 'rgba(100, 225, 255, 0.6)');
+    gFire.addColorStop(1, 'rgba(180, 245, 255, 0.85)');
+    ctx.fillStyle = gFire;
+    ctx.translate(sway, 0);
+    ctx.fillRect(14, SHIP_H - 6, glowW, glowH * stretch);
+    ctx.translate(-2 * sway, 0);
+    ctx.fillRect(54, SHIP_H - 6, glowW, glowH * (1.05 - 0.05 * stretch));
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.4 * pulse;
+    ctx.filter = 'blur(8px)';
+    const gCyan = ctx.createLinearGradient(32, SHIP_H + 50, 32, SHIP_H);
+    gCyan.addColorStop(0, 'rgba(34, 211, 238, 0)');
+    gCyan.addColorStop(0.6, 'rgba(34, 211, 238, 0.3)');
+    gCyan.addColorStop(1, 'rgba(103, 232, 249, 0.55)');
+    ctx.fillStyle = gCyan;
+    ctx.fillRect(14, SHIP_H - 4, glowW, 50);
+    ctx.fillRect(54, SHIP_H - 4, glowW, 50);
+    ctx.restore();
+
+    if (muzzleFlash.t < muzzleFlash.duration) {
+      const alpha = 1 - muzzleFlash.t / muzzleFlash.duration;
+      ctx.save();
+      ctx.fillStyle = `rgba(34, 211, 238, ${0.9 * alpha})`;
+      ctx.shadowColor = '#22d3ee';
+      ctx.shadowBlur = 12;
+      ctx.fillRect(44, 0, 8, 12);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function fireNoise(a, b, c) {
+    const x = ((a * 12.9898 + b * 78.233 + c * 45.164) % 1);
+    return x * x * (3 - 2 * x);
+  }
+
+  function drawFireBlasterStream() {
+    const totalShipH = (SHIP_H + 56) * SHIP_SCALE;
+    const originY = getShipCenterY() - totalShipH / 2;
+    const streamHeight = originY;
+    const shipX = width * playerX;
+    const t = gameTime * 0.05;
+
+    function centerXAt(v) {
+      return shipX - fireLagX * v;
+    }
+    const arcBulge = 6 + 4 * fireNoise(t * 0.1, 0, 0);
+
+    function turb(yNorm, t, phase, scale) {
+      return (
+        Math.sin(t * 2.1 + yNorm * 15 + phase) * scale +
+        Math.sin(t * 0.7 + yNorm * 7 + phase * 2) * scale * 1.4 +
+        Math.sin(t * 3.3 + yNorm * 23 + phase * 0.5) * scale * 0.6
+      );
+    }
+
+    function halfWidth(yNorm, layer) {
+      const taper = 1 - yNorm * 0.85;
+      const wobble = 0.85 + 0.3 * fireNoise(t * 0.08, yNorm * 20, layer);
+      return (FIRE_STREAM_WIDTH / 2) * taper * wobble;
+    }
+
+    const SEGS = 28;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let layer = 0; layer < 6; layer++) {
+      const ly = layer * 0.16;
+      const lwScale = 0.5 + 0.35 * (1 - ly);
+      const grad = ctx.createLinearGradient(shipX, originY, shipX, 0);
+      if (layer === 0) {
+        grad.addColorStop(0, 'rgba(255, 248, 140, 0.92)');
+        grad.addColorStop(0.12, 'rgba(255, 180, 50, 0.88)');
+        grad.addColorStop(0.35, 'rgba(230, 70, 20, 0.82)');
+        grad.addColorStop(0.6, 'rgba(180, 30, 8, 0.5)');
+        grad.addColorStop(0.85, 'rgba(100, 15, 0, 0.2)');
+        grad.addColorStop(1, 'rgba(60, 8, 0, 0)');
+      } else if (layer === 1) {
+        grad.addColorStop(0, 'rgba(255, 120, 40, 0.75)');
+        grad.addColorStop(0.3, 'rgba(210, 50, 15, 0.65)');
+        grad.addColorStop(0.6, 'rgba(150, 25, 5, 0.35)');
+        grad.addColorStop(1, 'transparent');
+      } else {
+        grad.addColorStop(0, `rgba(200, 60, 20, ${0.45 - layer * 0.06})`);
+        grad.addColorStop(0.5, `rgba(130, 30, 8, ${0.3 - layer * 0.04})`);
+        grad.addColorStop(1, 'transparent');
+      }
+      ctx.fillStyle = grad;
+      const phaseL = layer * 1.7;
+      const phaseR = layer * 1.7 + 3.1;
+      ctx.beginPath();
+      const c0 = centerXAt(0);
+      const botL = c0 - (FIRE_STREAM_WIDTH / 2) * lwScale + turb(0, t, phaseL, 5);
+      const botR = c0 + (FIRE_STREAM_WIDTH / 2) * lwScale + turb(0, t, phaseR, 5);
+      ctx.moveTo(botL, originY);
+      ctx.quadraticCurveTo(c0 - (FIRE_STREAM_WIDTH * 0.35), originY + arcBulge, c0, originY + arcBulge * 0.5);
+      ctx.quadraticCurveTo(c0 + (FIRE_STREAM_WIDTH * 0.35), originY + arcBulge, botR, originY);
+      for (let i = 1; i <= SEGS; i++) {
+        const v = i / SEGS;
+        const y = originY - v * streamHeight;
+        const yNorm = v;
+        const cx = centerXAt(v);
+        const hw = halfWidth(yNorm, layer) * lwScale;
+        const xL = cx - hw + turb(yNorm, t, phaseL + i * 0.4, 6 + 4 * fireNoise(t, i, layer));
+        const xR = cx + hw + turb(yNorm, t, phaseR + i * 0.3, 6 + 4 * fireNoise(t, i + 10, layer));
+        ctx.lineTo(xR, y);
+      }
+      const topC = centerXAt(1);
+      const topY = 4 + turb(1, t, 0, 3);
+      ctx.lineTo(topC + 2, topY);
+      ctx.lineTo(topC - 2, topY);
+      for (let i = SEGS; i >= 1; i--) {
+        const v = i / SEGS;
+        const y = originY - v * streamHeight;
+        const yNorm = v;
+        const cx = centerXAt(v);
+        const hw = halfWidth(yNorm, layer) * lwScale;
+        const xL = cx - hw + turb(yNorm, t, phaseL + i * 0.4, 6 + 4 * fireNoise(t, i, layer));
+        ctx.lineTo(xL, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    for (let i = 0; i < 35; i++) {
+      const seed = i * 2.31 + t * 0.06;
+      const v = fireNoise(seed, i, 1);
+      const py = originY - v * streamHeight * (0.3 + 0.7 * fireNoise(seed + 5, 0, 0));
+      const centerX = centerXAt(v);
+      const spread = (FIRE_STREAM_WIDTH * 0.6) * (0.5 + fireNoise(seed * 1.1, i * 2, 2));
+      const px = centerX + (fireNoise(seed * 2, i, 3) - 0.5) * 2 * spread;
+      const pr = 1.2 + fireNoise(seed * 3, i, 4) * 2.8;
+      const pa = 0.35 + 0.5 * fireNoise(t * 0.5 + i, 1, 5);
+      ctx.fillStyle = `rgba(255, ${160 + 40 * fireNoise(i, t, 6)}, ${40 + 30 * fireNoise(i, t, 7)}, ${pa})`;
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function electricRand(seed) {
+    const x = Math.sin(seed * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  function drawLightningBolt(x1, y1, x2, y2, seed, t) {
+    const segments = 12;
+    const points = [{ x: x1, y: y1 }];
+    for (let i = 1; i < segments; i++) {
+      const u = i / segments;
+      const jitter = 8 + 14 * electricRand(seed + i * 7 + t * 0.2);
+      const perpX = -(y2 - y1);
+      const perpY = x2 - x1;
+      const len = Math.hypot(perpX, perpY) || 1;
+      const side = (electricRand(seed + i * 3) > 0.5 ? 1 : -1);
+      const ox = (perpX / len) * jitter * side * (1 - u * 0.5);
+      const oy = (perpY / len) * jitter * side * (1 - u * 0.5);
+      points.push({
+        x: x1 + (x2 - x1) * u + ox,
+        y: y1 + (y2 - y1) * u + oy,
+      });
+    }
+    points.push({ x: x2, y: y2 });
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+    for (let b = 0; b < 2; b++) {
+      const branchAt = 2 + Math.floor(electricRand(seed + 100 + b) * (segments - 4));
+      if (branchAt >= 1 && branchAt < points.length - 1) {
+        const p = points[branchAt];
+        const angle = Math.atan2(y2 - y1, x2 - x1) + (electricRand(seed + b * 50) - 0.5) * 1.5;
+        const branchLen = 15 + electricRand(seed + b * 33) * 25;
+        const bx = p.x + Math.cos(angle) * branchLen;
+        const by = p.y + Math.sin(angle) * branchLen;
+        const subPoints = [{ x: p.x, y: p.y }];
+        for (let i = 1; i <= 3; i++) {
+          const u = i / 3;
+          const j = 4 * electricRand(seed + branchAt + i + b);
+          subPoints.push({
+            x: p.x + (bx - p.x) * u + (electricRand(seed + i) - 0.5) * j,
+            y: p.y + (by - p.y) * u + (electricRand(seed + i + 20) - 0.5) * j,
+          });
+        }
+        subPoints.push({ x: bx, y: by });
+        ctx.beginPath();
+        ctx.moveTo(subPoints[0].x, subPoints[0].y);
+        for (let i = 1; i < subPoints.length; i++) ctx.lineTo(subPoints[i].x, subPoints[i].y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawElectricShock() {
+    const shipX = width * playerX;
+    const shipY = getShipCenterY();
+    const totalShipH = (SHIP_H + 56) * SHIP_SCALE;
+    const originY = shipY - totalShipH / 2 - 10;
+    const t = gameTime * 0.08;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(180, 220, 255, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#88ccff';
+    ctx.shadowBlur = 12;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    electricTargets.forEach((pos, i) => {
+      drawLightningBolt(shipX, originY, pos.x, pos.y, i * 1.7 + 1, t);
+    });
+    if (electricTargets.length < 2) {
+      const wildY = 40 + electricRand(t) * 80;
+      const wildX = shipX + (electricRand(t + 1) - 0.5) * 60;
+      drawLightningBolt(shipX, originY, wildX, wildY, 99 + t, t);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 6;
+    electricTargets.forEach((pos, i) => {
+      drawLightningBolt(shipX, originY, pos.x, pos.y, i * 1.7 + 1 + 0.5, t);
+    });
+    if (electricTargets.length < 2) {
+      const wildY = 40 + electricRand(t + 2) * 80;
+      const wildX = shipX + (electricRand(t + 3) - 0.5) * 60;
+      drawLightningBolt(shipX, originY, wildX, wildY, 99 + t + 0.5, t);
+    }
+    ctx.restore();
+  }
+
+  function drawProjectiles() {
+    projectiles.forEach(p => {
+      ctx.save();
+      ctx.shadowColor = 'rgba(34,211,238,0.8)';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.restore();
+    });
+  }
+
+  function drawEnemies() {
+    enemies.forEach(e => {
+      if (e.type === 'diamond') {
+        const s = e.size / 2;
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeStyle = '#22d3ee';
+        ctx.fillStyle = 'rgba(34,211,238,0.5)';
+        ctx.shadowColor = 'rgba(34,211,238,0.8)';
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-s, -s, e.size, e.size);
+        ctx.fillRect(-s + 4, -s + 4, e.size - 8, e.size - 8);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.strokeStyle = '#ec5b13';
+        ctx.fillStyle = 'transparent';
+        ctx.shadowColor = 'rgba(236,91,19,0.6)';
+        ctx.shadowBlur = 15;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size / 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size / 4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+  }
+
+  function drawExplosions() {
+    explosions.forEach(ex => {
+      const t = ex.t / ex.duration;
+      const size = EXPLOSION_MAX_SIZE * Math.min(1, t * 2);
+      const alpha = 1 - t;
+      ctx.save();
+      ctx.translate(ex.x, ex.y);
+      ctx.fillStyle = `rgba(236, 91, 19, ${0.7 * alpha})`;
+      ctx.strokeStyle = `rgba(255, 200, 100, ${0.9 * alpha})`;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(236,91,19,0.8)';
+      ctx.shadowBlur = 8;
+      ctx.fillRect(-size/2, -size/2, size, size);
+      ctx.strokeRect(-size/2, -size/2, size, size);
+      ctx.restore();
+    });
+  }
+
+  function drawNebulae() {
+    ctx.fillStyle = '#0a0612';
+    ctx.fillRect(0, 0, width, height);
+
+    if (NEBULA_BG_IMAGE_URL && bgCloudsImgReady && bgCloudsImg.naturalWidth) {
+      const h = height;
+      const w = width;
+      const nw = bgCloudsImg.naturalWidth;
+      const nh = bgCloudsImg.naturalHeight;
+      const coverScale = Math.max(w / nw, h / nh);
+      const zoomOut = 0.82;
+      const scale = coverScale * zoomOut;
+      const srcW = w / scale;
+      const srcH = h / scale;
+      const sx = (nw - srcW) / 2;
+      const sy = (nh - srcH) / 2;
+      const res = NEBULA_IMAGE_RES_SCALE;
+      const destW = w * res;
+      const destH = h * res;
+      const destX = w * (1 - res) / 2;
+      const scrollY = nebulaImageScrollOffset % h;
+      const destY1 = scrollY - h + h * (1 - res) / 2;
+      const destY2 = scrollY + h * (1 - res) / 2;
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.globalCompositeOperation = 'luminosity';
+      ctx.drawImage(bgCloudsImg, sx, sy, srcW, srcH, destX, destY1, destW, destH);
+      ctx.drawImage(bgCloudsImg, sx, sy, srcW, srcH, destX, destY2, destW, destH);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 1;
+    nebulae.forEach(n => {
+      const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+      g.addColorStop(0, n.color);
+      g.addColorStop(0.4, n.color.replace(/[\d.]+\)$/, '0.06)'));
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+    ctx.save();
+    ctx.filter = 'blur(18px)';
+    ctx.globalAlpha = 0.85;
+    nebulae.forEach(n => {
+      const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 0.9);
+      g.addColorStop(0, n.color);
+      g.addColorStop(0.6, 'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function draw(now) {
+    update(now);
+    ctx.clearRect(0, 0, width, height);
+    drawNebulae();
+    drawProjectiles();
+    drawEnemies();
+    drawExplosions();
+    drawShip();
+    if (currentWeapon === WEAPON_FIRE) drawFireBlasterStream();
+    if (currentWeapon === WEAPON_ELECTRIC) drawElectricShock();
+    ctx.save();
+    ctx.font = '10px Public Sans, sans-serif';
+    const weaponLabel = currentWeapon === WEAPON_FIRE ? 'Fire' : currentWeapon === WEAPON_ELECTRIC ? 'Electric' : 'Laser';
+    ctx.fillStyle = currentWeapon === WEAPON_FIRE ? 'rgba(255, 180, 60, 0.9)' : currentWeapon === WEAPON_ELECTRIC ? 'rgba(180, 220, 255, 0.9)' : 'rgba(34, 211, 238, 0.9)';
+    ctx.fillText('Weapon: ' + weaponLabel + ' [F]', width - 118, height - 12);
+    ctx.restore();
+    rafId = requestAnimationFrame(draw);
+  }
+
+  function onPointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    pointerX = e.clientX - rect.left;
+    pointerY = e.clientY - rect.top;
+    pointerActive = true;
+  }
+  function onPointerDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    pointerDownX = e.clientX - rect.left;
+    pointerDownY = e.clientY - rect.top;
+  }
+  function onPointerEnd() {
+    const dx = Math.abs(pointerX - pointerDownX);
+    const dy = Math.abs(pointerY - pointerDownY);
+    if (dx < 15 && dy < 15 && pointerX >= width - 120 && pointerY <= 36) {
+      currentWeapon = currentWeapon === WEAPON_LASER ? WEAPON_FIRE : currentWeapon === WEAPON_FIRE ? WEAPON_ELECTRIC : WEAPON_LASER;
+    }
+    pointerActive = false;
+  }
+
+  canvas.addEventListener('mousedown', e => { onPointerDown(e); onPointer(e); });
+  canvas.addEventListener('mousemove', e => { if (e.buttons) onPointer(e); });
+  canvas.addEventListener('mouseup', onPointerEnd);
+  canvas.addEventListener('mouseleave', onPointerEnd);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); onPointerDown(e.touches[0]); onPointer(e.touches[0]); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); onPointer(e.touches[0]); }, { passive: false });
+  canvas.addEventListener('touchend', e => { e.preventDefault(); if (!e.touches.length) onPointerEnd(); }, { passive: false });
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'f' || e.key === 'F' || e.key === '2') {
+      currentWeapon = currentWeapon === WEAPON_LASER ? WEAPON_FIRE : currentWeapon === WEAPON_FIRE ? WEAPON_ELECTRIC : WEAPON_LASER;
+      e.preventDefault();
+    }
+    if (e.key === '3' || e.key === 'e' || e.key === 'E') {
+      currentWeapon = currentWeapon === WEAPON_ELECTRIC ? WEAPON_LASER : WEAPON_ELECTRIC;
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener('resize', () => { resize(); });
+  resize();
+  requestAnimationFrame(draw);
+})();
+  </script>
+</body>
+</html>
