@@ -164,7 +164,7 @@ Data Run is a vertical-scrolling space shooter where one run equals one session.
 
 ### Level Types
 
-- **Single run type for MVP:** One continuous vertical-scroll “level” per run. Length fixed by time or wave count (e.g. 90 sec or N waves then boss).
+- **Single run type for MVP:** One continuous vertical-scroll “level” per run. Length fixed by time or wave count (e.g. 90 sec or N waves then boss). **HTML preview (`preview/gameplay.html`):** wave count follows **fodder asset manifest** + mix wave; **clear-to-advance** spawns (no run timer); **Boss L1** after each full fodder cycle (`Boss_L1.png`).
 - **No discrete levels.** Variation comes from tier (difficulty), boss variant, and optional voucher placement.
 
 ### Level Progression
@@ -181,6 +181,7 @@ Data Run is a vertical-scrolling space shooter where one run equals one session.
 - Clear, readable shapes: ship, bullets, enemies, pickups, boss. High contrast for lanes and obstacles. Style: simple geometric or soft sci-fi; avoid clutter.
 - **UI:** Minimal HUD—lives, optional “distance to boss” or tier label. End screen: rewards only (data pack size, voucher count, claim/play again).
 - **Figma:** When available, Figma designs for HUD, end screen, tier-select, and main menu will be linked here to align art and implementation. *Supply Figma when you have: tier-select screen, in-run HUD, end screen (win/fail), and main menu.*
+- **Preview win screen:** HTML prototype implements the **Mission Complete / gratification** layout from Figma CaseStudies [node 2273:84529](https://www.figma.com/design/Iw9q2ANqLYmqfKAsY96kbI/CaseStudies?node-id=2273-84529) after boss defeat (VIBGYOR sparks + ripple, “Awesome” fly-out, then results + retry / exit). Flutter should match this screen for parity.
 
 ### Audio and Music
 

@@ -103,25 +103,26 @@ Use as a checklist for art and VFX. Tick when created or delegated.
 
 ---
 
-## 6. Implemented (Preview Build — Phase 1 scaffolding complete)
+## 6. Implemented (Preview Build — Phase 2 gameplay prototype)
 
-- **Ship (Figma-aligned):** Main Body Hull (vector shape or image asset), elongated; orange outline + soft glow. Cockpit Glass: vertical pill, cyan border + gradient (Figma 2154:992). Wing structures above thrusters; orange stroke (top edge thin 10% + glow); strong orange glow on all edges. Engine intake bar; blue thruster flames and blue glow below nozzles.
+- **Ship (Figma-aligned):** Main Body Hull (vector shape or image asset), elongated; orange outline + soft glow. Cockpit Glass: vertical pill, cyan border + gradient (Figma 2154:992). Wing structures above thrusters; orange stroke (top edge thin 10% + glow); strong orange glow on all edges. Engine intake bar; blue thruster flames and blue glow below nozzles. Upgraded hull PNG: `assets/images/Level 1/spaceship_upgrade_L1.png`.
 - **Movement:** Smooth X+Y; pointer/touch sets target; lerp (smooth factor 0.12). Ship Y range: 28%–86% of canvas height.
 - **Thrusters:** Blue exhaust (cyan/blue gradients, particles) and blue glow below nozzles.
-- **Weapon:** Three-way laser spread (18°), projectile speed 16, fire interval 240 ms.
-- **Fire Blaster:** Implemented. Central thick fire stream, continuous; layered fire + particles; instant kill. Switch F/2 or tap top-right. Trigger later: upgrades from enemies.
-- **Electric Shock:** Implemented. Procedural lightning auto-targets up to 3 nearest enemies in range; jagged, animated bolts with small branches; instant kill. Switch F (cycle) or 3/E.
+- **Weapon — Laser:** Three-way spread (18°) or single-file **[T]** toggle; projectile speed 16; fire interval 240 ms.
+- **Fire Blaster:** Central thick fire stream, continuous; layered fire + particles; fodder removed on overlap; **boss** takes damage per frame while in stream. Switch F/2 or tap top-right.
+- **Electric Shock:** Auto-targets up to 3 nearest enemies in range; jagged bolts; fodder removed in one tick; **boss** loses 2 HP per tick while targeted. Switch F (cycle) or 3/E.
+- **Fodder enemies:** PNG sprites `Fodder Class=Type1.png` / `Type2.png` (Level 1 folder); wave script: type-per-wave + mix wave when multiple types; formations **rectangle** or **triangle**; entry **top** (wave 1) and **random top vs all-left/all-right** later with **circular / fig‑8 / straight** side paths; staggered file release; post-formation **ship-relative hold + slow drift** (no global downward fall). Attacks after `formed`.
+- **Boss L1:** After each full fodder cycle, `Boss_L1.png` spawns; multi-hit HP, bonus score on destroy; same top entry variants then hold/drift with a higher standoff. **Boss win:** extra VIBGYOR spark burst + ripples, ship flies up with **“Awesome”**, then **Mission Complete** HTML overlay (Figma [2273:84529](https://www.figma.com/design/Iw9q2ANqLYmqfKAsY96kbI/CaseStudies?node-id=2273-84529)); **Retry** restarts run — no auto loop to wave 1 on win.
+- **Run:** No countdown timer in preview; **3 lives**; next wave when all enemies cleared; **Boss** label on HUD during boss fight.
 
 ---
 
-## 7. Next phase (Phase 2) — Frameworks
+## 7. Next phase / open items
 
-- **Enemy flanking:** Groups of enemies enter from sides (left/right), not only from top.
-- **Formations:** Enemies spawn in defined formations (V, line, wedge, etc.).
-- **Enemy attacks:** Enemies can attack the player (projectiles, beams).
-- **Enemy positioning:** After flanking/entering, enemies take position and stay static or move relative to player (constant distance); not only top-to-bottom motion.
-- **Spaceship upgrades:** Upgrades change ship visuals and/or bullet types (unlock/enhance Fire Blaster, Electric Shock, spread).
-- **Drops on kill:** Enemies drop upgrades when destroyed; pickups drive weapon unlocks and progression.
+- **Tier scaling:** Map tier → boss HP, fire rate, fodder count (preview is single-tier).
+- **Psionic weapon / turret pickup taxonomy** (separate from ship upgrade pickup).
+- **Mid-tier enemy type** when design exists.
+- **Flutter port** of the same wave + boss sequencing.
 
 ---
 

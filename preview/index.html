@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Jersey+10&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #020617;
@@ -93,10 +94,11 @@
       position: relative;
       width: 302px;
       max-width: 90%;
-      transform: translateY(-24px);
+      min-height: 136px;
+      transform: translateY(-36px);
     }
 
-    /* Outer halo — gentle pulse */
+    /* Outer halo — behind ship only */
     .halo {
       position: absolute;
       left: 50%;
@@ -115,21 +117,42 @@
       50% { opacity: 0.25; transform: translate(-50%, -50%) scale(1.05); }
     }
 
-    .ship-img {
-      position: relative;
-      width: 100%;
-      height: auto;
-      max-width: 320px;
-      margin: 0 auto;
-      display: block;
-      filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.4));
-    }
-
-    /* Logo text */
+    /* Logo first (above ship); strike tucks under “Striker”, then illustration */
     .logo {
       position: relative;
       text-align: center;
-      margin-top: -2px;
+      margin-top: 0;
+      z-index: 3;
+    }
+
+    .deco-strike {
+      position: relative;
+      display: block;
+      left: auto;
+      top: auto;
+      transform: none;
+      width: 227px;
+      max-width: 82%;
+      height: auto;
+      margin: -10px auto 6px;
+      opacity: 0.65;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .ship-wrap {
+      position: relative;
+      left: -8px;
+      width: 320px;
+      max-width: calc(100% + 16px);
+      margin: 4px auto 0;
+      z-index: 1;
+    }
+    .ship-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.4));
     }
 
     .logo-nova {
@@ -161,17 +184,21 @@
       text-shadow: 0 0 20px rgba(244, 114, 182, 0.6);
     }
 
-    /* Status line */
+    /* Status line — single line, no wrap */
     .status {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      margin-top: 20px;
+      gap: 12px;
+      margin-top: 18px;
       opacity: 0.5;
+      flex-wrap: nowrap;
+      padding: 0 4px;
     }
     .status-line {
-      width: 48px;
+      flex: 0 0 32px;
+      max-width: 48px;
+      min-width: 24px;
       height: 1px;
       background: linear-gradient(to right, transparent, var(--cyan));
     }
@@ -179,11 +206,15 @@
       background: linear-gradient(to left, transparent, var(--cyan));
     }
     .status-text {
-      font-size: 8px;
-      font-weight: 700;
-      letter-spacing: 4px;
+      font-family: 'Jersey 10', 'Nunito', sans-serif;
+      font-size: clamp(11px, 2.9vw, 15px);
+      font-weight: 400;
+      letter-spacing: clamp(2px, 0.55vw, 4px);
       text-transform: uppercase;
       color: var(--white);
+      line-height: 1.1;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     /* Main CTA — BATTLE button */
@@ -209,12 +240,26 @@
       height: 80px;
       background: rgba(30, 58, 138, 0.2);
       border: 1px solid var(--border-cyan);
+      box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.3);
       cursor: pointer;
       text-decoration: none;
       color: inherit;
       position: relative;
       overflow: hidden;
       transition: box-shadow 0.2s ease, transform 0.15s ease;
+    }
+    /* No raster underlay — Figma export included extra top-center chrome that clashed with CSS corners */
+    .btn-battle-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: linear-gradient(90deg, rgba(255, 0, 0, 0.05) 0%, rgba(0, 255, 0, 0.015) 50%, rgba(0, 0, 255, 0.05) 100%);
+    }
+    .btn-battle .btn-label,
+    .btn-battle .btn-title {
+      position: relative;
+      z-index: 2;
     }
     .btn-battle:hover {
       box-shadow: 0 0 20px rgba(34, 211, 238, 0.5), inset 0 0 30px rgba(34, 211, 238, 0.08);
@@ -224,14 +269,41 @@
       transform: scale(0.98);
     }
 
-    /* Corner brackets */
-    .btn-battle::before,
-    .btn-battle::after { content: ''; position: absolute; width: 16px; height: 16px; border-color: var(--cyan); border-style: solid; }
-    .btn-battle::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
-    .btn-battle::after { top: 0; right: 0; border-width: 2px 2px 0 0; }
-    .corner-b { position: absolute; width: 16px; height: 16px; border-color: var(--cyan); border-style: solid; bottom: 0; }
-    .corner-b.l { left: 0; border-width: 0 0 2px 2px; }
-    .corner-b.r { right: 0; border-width: 0 2px 2px 0; }
+    /* HUD corner brackets — absolute layer only (never flex children) */
+    .btn-battle-corners {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      box-sizing: border-box;
+    }
+    .btn-battle-corners .bc {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-color: var(--cyan);
+      border-style: solid;
+    }
+    .btn-battle-corners .bc-tl {
+      top: 0;
+      left: 0;
+      border-width: 2px 0 0 2px;
+    }
+    .btn-battle-corners .bc-tr {
+      top: 0;
+      right: 0;
+      border-width: 2px 2px 0 0;
+    }
+    .btn-battle-corners .bc-bl {
+      bottom: 0;
+      left: 0;
+      border-width: 0 0 2px 2px;
+    }
+    .btn-battle-corners .bc-br {
+      bottom: 0;
+      right: 0;
+      border-width: 0 2px 2px 0;
+    }
 
     .btn-label {
       font-size: 8px;
@@ -248,7 +320,7 @@
       letter-spacing: 6px;
       text-transform: uppercase;
       color: var(--white);
-      text-shadow: 0 0 10px var(--cyan);
+      text-shadow: 0 0 10px #22d3ee, 0 0 20px rgba(34, 211, 238, 0.35);
     }
 
     /* Nav: Points, Vouchers, Settings — Figma 2154:466 */
@@ -286,16 +358,18 @@
       margin-bottom: 4px;
       flex-shrink: 0;
       object-fit: contain;
+      display: block;
     }
-    .nav-btn.points .nav-icon { filter: drop-shadow(0 0 1px rgba(34,211,238,0.8)); }
-    .nav-btn.vouchers .nav-icon { filter: drop-shadow(0 0 1px rgba(244,114,182,0.8)); }
-    .nav-btn.settings .nav-icon { opacity: 0.8; }
+    .nav-btn.points .nav-icon { filter: drop-shadow(0 0 2px rgba(34,211,238,0.65)); }
+    .nav-btn.vouchers .nav-icon { filter: drop-shadow(0 0 2px rgba(244,114,182,0.65)); }
+    .nav-btn.settings .nav-icon { opacity: 0.9; }
 
     .nav-btn .nav-label {
-      font-size: 8px;
-      font-weight: 700;
+      font-family: 'Jersey 10', 'Nunito', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
       line-height: 12px;
-      letter-spacing: -0.4px;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
       text-align: center;
       white-space: nowrap;
@@ -349,41 +423,41 @@
       color: #eaeaea;
     }
 
-    /* Decorative vector (optional placeholders if no img) */
-    .deco {
-      position: absolute;
-      left: 50%;
-      top: 99px;
-      transform: translateX(-50%);
-      width: 227px;
-      height: 20px;
-      opacity: 0.6;
-    }
   </style>
 </head>
 <body>
-  <div class="body" data-name="Body">
+  <!-- Home screen — Figma CaseStudies node 2154:410 https://www.figma.com/design/Iw9q2ANqLYmqfKAsY96kbI/CaseStudies?node-id=2154-410 -->
+  <div class="body" data-name="Body" data-figma-node="2154:410">
     <div class="scene">
       <div class="stars" aria-hidden="true"></div>
       <div class="gradient" aria-hidden="true"></div>
 
       <section class="hero">
         <div class="hero-inner">
-          <div class="halo" aria-hidden="true"></div>
-          <img
-            class="ship-img"
-            src="https://www.figma.com/api/mcp/asset/8ff8759c-c0c2-4787-a2eb-7ec420e5899e"
-            alt=""
-            width="320"
-            height="204"
-          />
           <div class="logo">
             <div class="logo-nova">Nova</div>
             <div class="logo-striker">Striker</div>
           </div>
+          <img
+            class="deco-strike"
+            src="assets/images/home/strike-line.svg"
+            alt=""
+            width="227"
+            height="20"
+          />
+          <div class="ship-wrap">
+            <div class="halo" aria-hidden="true"></div>
+            <img
+              class="ship-img"
+              src="assets/images/home/ship.svg"
+              alt="Nova Striker ship"
+              width="320"
+              height="314"
+            />
+          </div>
           <div class="status">
             <div class="status-line"></div>
-            <span class="status-text">Combat system ready</span>
+            <span class="status-text">Combat System Ready</span>
             <div class="status-line"></div>
           </div>
         </div>
@@ -391,24 +465,29 @@
 
       <section class="cta-section">
         <a href="gameplay.html" class="btn-battle" id="btnBattle">
-          <span class="corner-b l"></span>
-          <span class="corner-b r"></span>
+          <span class="btn-battle-bg" aria-hidden="true"></span>
+          <span class="btn-battle-corners" aria-hidden="true">
+            <span class="bc bc-tl"></span>
+            <span class="bc bc-tr"></span>
+            <span class="bc bc-bl"></span>
+            <span class="bc bc-br"></span>
+          </span>
           <span class="btn-label">Initialize mission</span>
           <span class="btn-title">Battle</span>
         </a>
         <nav class="nav">
           <button type="button" class="nav-btn points" aria-label="Points">
-            <img class="nav-icon" src="https://www.figma.com/api/mcp/asset/8ded3323-7d81-4048-8710-3c2f2dd654a9" alt="" width="24" height="24" />
+            <img class="nav-icon" src="assets/images/home/icon-points.svg" alt="" width="24" height="24" />
             <span class="nav-label">points</span>
             <span class="nav-corner" aria-hidden="true"></span>
           </button>
           <button type="button" class="nav-btn vouchers" aria-label="Vouchers">
-            <img class="nav-icon" src="https://www.figma.com/api/mcp/asset/d33be5aa-d936-45d2-8d91-6a7a32364221" alt="" width="24" height="24" />
+            <img class="nav-icon" src="assets/images/home/icon-vouchers.svg" alt="" width="24" height="24" />
             <span class="nav-label">Vouchers</span>
             <span class="nav-corner" aria-hidden="true"></span>
           </button>
           <button type="button" class="nav-btn settings" aria-label="Settings">
-            <img class="nav-icon" src="https://www.figma.com/api/mcp/asset/642b2f7e-96cc-4209-8ff6-3e343666e298" alt="" width="24" height="24" />
+            <img class="nav-icon" src="assets/images/home/icon-settings.svg" alt="" width="24" height="24" />
             <span class="nav-label">settings</span>
             <span class="nav-corner" aria-hidden="true"></span>
           </button>

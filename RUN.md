@@ -86,9 +86,7 @@ python3 -m http.server 8080
 
 Then open: **http://localhost:8080/preview/** — click **Battle** to open Gameplay (`preview/gameplay.html`).
 
-**Gameplay (Phase 1 scaffolding complete):** Ship matches Figma: Main Body Hull (vector shape or asset), Cockpit Glass (vertical pill, cyan border + gradient), wing structures above thrusters with orange glow (top edge thin stroke + glow). Blue thruster flames and glow. Smooth X+Y movement; three-way laser, **Fire Blaster**, and **Electric Shock** (cycle with F or 2/3/E / tap top-right). Diamond/circle enemies, impact explosions. See `preview/PREVIEW-GAMEPLAY.md` and `_bmad-output/shooting-mechanics-reference.md` for details.
-
-**Next phase (Phase 2):** Enemy flanking from sides; formations; enemy attacks; enemies that position and hold (or maintain distance to player); spaceship upgrades (visual + bullet types); upgrades dropped on enemy kill. See `preview/PREVIEW-GAMEPLAY.md` § Next phase.
+**Gameplay (Phase 2 preview):** Ship matches Figma; smooth X+Y movement; **laser** (single / triple **[T]**), **Fire Blaster**, **Electric Shock** (F / 2 / 3 / E / tap). **Fodder** waves use PNGs in `preview/assets/images/Level 1/` (`Fodder Class=Type1/Type2`); **rectangular or triangle** formations; entry from **top** (wave 1) and **random top vs sides** later (circular / fig‑8 / straight file). Enemies **track the ship** and **drift** toward the player after forming; they **shoot** after `formed`. After each full **fodder cycle** (wave count = fodder types + mix when 2+ types), **Boss L1** spawns (`Boss_L1.png`). **No run timer** — run ends at 0 lives. See `preview/PREVIEW-GAMEPLAY.md` and `_bmad-output/phase-2-implementation-handoff.md`.
 
 In Cursor you can also use **Simple Browser** (Command Palette → “Simple Browser: Show”) and enter that URL, or open `preview/index.html` from the file explorer.
 

@@ -1,7 +1,9 @@
 # Nova Striker — Preview Gameplay
 
 **Build:** `preview/gameplay.html` (opened via **Battle** on home screen).  
-**Status:** Phase 1 scaffolding complete.
+**Status:** Phase 2 preview — fodder waves, formations, boss L1, ship weapons.
+
+**Home:** `preview/index.html` matches Figma [node 2154-410](https://www.figma.com/design/Iw9q2ANqLYmqfKAsY96kbI/CaseStudies?node-id=2154-410); art lives in `preview/assets/images/home/` (ship, strike line, battle button texture, nav icons).
 
 ---
 
@@ -9,55 +11,58 @@
 
 ### Controls
 - **Movement:** Drag (mouse) or touch to move the ship. **X and Y** movement; smooth lerp so the ship follows the pointer without snapping.
-- **Shooting:** Automatic three-way laser spread (no extra input). Weapon switch: **F** (cycle), **2** (Fire), **3** / **E** (Electric), or tap top-right.
+- **Shooting:** Automatic laser (single-file or three-way spread — **[T]** when Laser is active). Weapon switch: **F** (cycle), **2** / **3** / **E** (Electric), or tap top-right.
 
 ### Ship (Figma-aligned)
 - **Size:** 80% scale; 96×112 px body reference + thruster glow below.
-- **Main Body Hull:** Figma vector shape (pointed nose, wider midsection, broad flat stern). Hull image asset when available; else canvas-drawn path. Orange outline with soft glow (shadowBlur 24).
-- **Cockpit Glass:** Vertical pill (24×48), top 16 px; cyan border, dark teal fill, inner gradient (Figma 2154:992). Subtle cyan glow on stroke.
-- **Wing structures:** Above thrusters; left/right with single rounded corner per Figma. Orange stroke on left, bottom, right edges; top edge drawn with thin stroke (10% thickness) + same orange glow so glow is visible. Cyan pill overlays (vents). Strong orange glow on all wing edges (shadowBlur 28).
-- **Engine intake:** Orange-tinted bar above thrusters.
-- **Thrusters:** Blue flame exhaust (layered cyan/blue gradients, particles) and blue glow below nozzles (replacing previous orange).
+- **Main Body Hull:** Figma vector shape or image; orange outline with soft glow.
+- **Cockpit / wings / thrusters:** As in Figma; blue thruster exhaust.
 - **Position bounds:** X 10%–90% of width; Y 28%–86% of play area height.
+- **Upgraded hull:** PNG `assets/images/Level 1/spaceship_upgrade_L1.png` when an upgrade is collected or **[U]** toggles preview.
 
-### Weapons (all retained)
-- **Three-way laser (default):** One shot = three projectiles (center + 18° left/right). Fire interval 240 ms, projectile speed 16. Cyan tracers, brief muzzle flash.
-- **Fire Blaster:** Central thick fire stream, continuous; turbulent fire + particles; instant kill. Switch: **F** / **2** or tap top-right. *Trigger later: upgrades from enemies.*
-- **Electric Shock:** Procedural lightning from ship to up to 3 nearest enemies; auto-targets, instant kill. Jagged animated bolts + branches. Switch: **F** (cycle) or **3** / **E**.
+### Weapons
+- **Laser:** Single or triple spread **[T]**; fire interval 240 ms. Cyan tracers, muzzle flash.
+- **Fire Blaster:** Continuous stream; damage over contact (fodder dies in one frame; **boss** loses HP per tick).
+- **Electric Shock:** Up to 3 targets; fodder removed in one zap; **boss** loses 2 HP per zap while in range.
 
-### Enemies & VFX
-- **Enemies:** Diamond (cyan) and circle (orange) spawn in waves; sometimes 2–3 at once. Move downward; one hit = destroy + rectangular impact explosion.
+### Enemies — fodder (Level 1)
+- **Art:** `Fodder Class=Type1.png` and `Fodder Class=Type2.png` under `assets/images/Level 1/`. Fallback: cyan diamond / orange circle if PNG missing.
+- **Waves:** Declared in code as `LEVEL_FODDER_ASSETS` (array of paths). With **two** types: **Wave 1** = Type 1 only, **Wave 2** = Type 2 only, **Wave 3** = mix (alternating types). With **one** type: a single fodder wave repeats. **Total fodder waves** = `n` types → `n + 1` waves when `n ≥ 2`, else `1`.
+- **Entry:** **Wave 1** always from **top** (`pickEntryPathVariant`: straight ~55%, arc-left, arc-right). **Later waves:** random **top** (~45%) or **all from one side** (left/right 50/50). Side paths: **circular** (quadratic arc), **figure‑8**, or **straight** angled file.
+- **File / stagger:** Enemies release onto the path every **~200 ms** per slot in their entry group (continuous file).
+- **Formations:** **Rectangle** grid (up to 5 columns) or **triangle** when count is a triangular number (3, 6, 10, …). **Split flank** (two files L/R into one grid) when wave ≥ 2, side entry, even count ≥ 6, rectangular layout, random roll.
+- **After formation:** No passive “fall.” Enemies keep **formation offset** vs the ship, **track** horizontally, and **drift slowly** toward the player vertically, capped by a **closest approach** above the ship.
+- **Shooting:** Enemies fire only after **`formed`**; interval scales with run time; **boss** fires somewhat slower.
+- **Drops:** ~10% pickup on fodder kill; boss ~40% chance on destroy. Pickup: `assets/images/Level 1/upgrade-pickup.png`.
+
+### Boss (Level 1)
+- **Asset:** `assets/images/Level 1/Boss_L1.png`.
+- **When:** After **all** fodder waves in a cycle complete, the next spawn is the **boss** (HUD shows **Boss**). **Win:** destroying the boss triggers a **victory sequence** (no immediate fodder respawn). **Retry Mission** on the results screen starts a fresh run from wave 1 (including wave-1 intro).
+- **Stats:** Large hitbox (~108 px draw size), **~32 HP**, score bonus on kill (see `BOSS_SCORE_BONUS` in `gameplay.html`). Enters from **top** using the same path variants as fodder top entry; then same formation-follow + drift behaviour with a **higher** hold (larger `|formation Y|` cap).
+
+### Boss win → mission complete (Figma 2273:84529)
+- **FX:** Keeps the existing **VIBGYOR radial ripple** on hits; on boss death adds **extra ripples** and **additive VIBGYOR spark particles** (`victorySparks`, `drawVictorySparks`).
+- **Fly-out:** Ship **auto-rises** off the top; center message **“Awesome”** (`VICTORY_FLYOUT_MS`).
+- **Results overlay:** HTML/CSS **Mission Complete** screen aligned with [Figma Gratification screen](https://www.figma.com/design/Iw9q2ANqLYmqfKAsY96kbI/CaseStudies?node-id=2273-84529): subtitle *Sector 7 Alpha Secured*, unlocked reward strip, tactical stars (from laser accuracy sample), score + accuracy, **Retry Mission** / **Exit to Menu** (`preview/index.html`).
+
+### Run / HUD
+- **No run timer** in preview (removed). **Lose:** run ends on **0 lives** (**OUT OF LIVES** on canvas). **Win:** boss defeat → mission complete overlay (separate from loss).
+- **Wave label:** `Wave N` during fodder, **`Boss`** during boss fight.
+- **Lives:** 3 hearts; hit flash; chain score + ripples on kills.
 
 ### Docs
-- `RUN.md` — how to run preview, Phase 1 summary.
-- `_bmad-output/shooting-mechanics-reference.md` — ammo table, §6 Implemented.
+- `RUN.md` — how to run preview.
+- `_bmad-output/phase-2-implementation-handoff.md` — Phase 2 scope vs preview.
+- `_bmad-output/shooting-mechanics-reference.md` — weapons table + §6 implemented.
 
 ---
 
-## Phase 1 scaffolding
+## Extending fodder / levels
 
-Ship art and layout match Figma (hull, cockpit, wings, thrusters). All three ammo types work; weapon switching is for testing; upgrade drops to trigger Fire/Electric are planned for Phase 2.
+Add PNG paths to **`LEVEL_FODDER_ASSETS`** in `gameplay.html`. Wave count becomes **`length + 1`** (mix wave) when `length ≥ 2`. For **Level 2+**, duplicate the pattern with another array or load from a level key when the host app provides it.
 
----
-
-## Next phase (Phase 2) — Overarching frameworks
-
-1. **Enemy flanking from sides** — Groups of enemies enter from the left and/or right (flanking), not only from the top.
-2. **Formations** — Enemies spawn and move in defined formations (e.g. V, line, wedge) rather than only random single/duo/trio.
-3. **Enemy attacks** — Enemies can attack the player (e.g. projectiles, beams); not only movement.
-4. **Enemy positioning and holding** — Enemies do not only move top-to-bottom. After flanking (or entering), they take up positions and either stay static or move relative to the player, keeping a constant distance (e.g. orbit, hold offset).
-5. **Spaceship upgrades** — Upgrades that change the ship’s overall design (visual) and/or affect attacking bullet types (e.g. unlock or enhance Fire Blaster, Electric Shock, spread).
-6. **Upgrades on annihilation** — Enemies drop upgrades when destroyed; these pickups drive progression and weapon unlocks (e.g. Fire Blaster, Electric Shock triggers).
+Boss per level: currently **L1** only in preview (`BOSS_L1_URL`). Later levels can switch image URL and stats the same way.
 
 ---
 
-## Fire Blaster (implemented)
-
-- **Behaviour:** One central column of thick fire, continuous stream from ship nose (no discrete bullets).
-- **Visual:** Layered yellow/orange/red gradient, animated edges, ~14 drifting particles for “alive” feel; soft glow behind.
-- **Damage:** Instant kill on contact with stream hitbox (rect, ~36×100 px).
-- **Trigger:** For testing: switch with **F** / **2** or tap top-right. *Planned:* trigger from upgrades dropped by enemies (flexible, not fixed).
-
----
-
-*Preview build for Data Run / Nova Striker. See GDD and game-brief for full design.*
+*Preview build for Data Run / Nova Striker. See GDD and game-brief for full product design.*

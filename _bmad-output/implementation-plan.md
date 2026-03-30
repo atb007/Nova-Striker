@@ -39,8 +39,8 @@ Order logic so the game is playable end-to-end with placeholders, then refine.
 1. **Core loop (no rewards yet)**  
    - Tier select (UI or debug menu) → start run.  
    - Run: vertical scroll, 3 lives, dodge/shoot/collect (placeholders OK).  
-   - Boss wave; win = defeat boss, fail = 3 deaths.  
-   - End screen: win/fail + mock “reward” text.
+   - Boss wave; win = defeat boss, fail = 3 deaths. **Preview:** fodder waves → `Boss_L1.png` gate per cycle (`preview/gameplay.html`).  
+   - End screen: win/fail + mock “reward” text. **Preview win:** boss defeat → VIBGYOR sparks + extra ripples, ship fly-out + “Awesome”, then **Mission Complete** overlay (Figma [2273:84529](https://www.figma.com/design/Iw9q2ANqLYmqfKAsY96kbI/CaseStudies?node-id=2273-84529)) with retry / exit to menu; loss still **OUT OF LIVES** on canvas.
 
 2. **Difficulty and level**  
    - Tier → difficulty params (spawn rate, bullet speed, boss health/speed).  
