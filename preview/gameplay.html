@@ -374,7 +374,15 @@
   const WAVE1_COUNTDOWN_DIGIT_MS = 800;
   const BRIEF_WAVE_TITLE_MS = 1100;
   const VICTORY_SPARKS_MS = 1900;
-  const VICTORY_FLYOUT_MS = 2600;
+  /** Min time in flyout before we may show results (lets “Awesome” read). */
+  const VICTORY_FLYOUT_MIN_MS = 900;
+  /** Hard cap so we never hang if geometry check fails. */
+  const VICTORY_FLYOUT_MAX_MS = 12000;
+  /** Normalized Y target: 1.48 only moved center to top; hull extends below center — need higher. */
+  const VICTORY_FLYOUT_TARGET_PLAYER_Y = 2.75;
+  /** Takeoff lerp (per dt-scaled frame): lower = smoother/slower; ~0.09 = swift but not rushed. */
+  const VICTORY_FLYOUT_Y_LERP = 0.089;
+  const VICTORY_FLYOUT_X_LERP = 0.085;
   const TIER_REWARD_TITLE = '2GB Data Reward';
   const VIBGYOR_SPARK_RGB = [
     [148, 0, 211],
@@ -1076,6 +1084,10 @@
     const dt = Math.min(1 / 30, rawDt) * 60;
     update.last = now;
 
+    const waveCombatUnlocked =
+      !firstWaveSpawnPending || (wave1IntroEndAt !== null && now >= wave1IntroEndAt);
+    playerCombatEnabled = waveCombatUnlocked && !victoryState;
+
     if (victoryState === 'ui') {
       gameTime = now;
       nebulaScrollOffset += NEBULA_SCROLL_SPEED * (dt / 60);
@@ -1092,16 +1104,22 @@
     }
 
     if (victoryState === 'sparks' || victoryState === 'flyout') {
+      enemyBullets = [];
+      projectiles = [];
       gameTime = now;
       if (!runStartTime) runStartTime = now;
       if (victoryState === 'sparks' && now - victoryPhaseStartAt >= VICTORY_SPARKS_MS) {
         victoryState = 'flyout';
         victoryPhaseStartAt = now;
-        targetPlayerY = 1.48;
+        targetPlayerY = VICTORY_FLYOUT_TARGET_PLAYER_Y;
         targetPlayerX = playerX;
-      } else if (victoryState === 'flyout' && now - victoryPhaseStartAt >= VICTORY_FLYOUT_MS) {
-        victoryState = 'ui';
-        openMissionCompleteOverlay();
+      } else if (victoryState === 'flyout') {
+        const flyT = now - victoryPhaseStartAt;
+        const shipGone = isVictoryShipFullyOffTop();
+        if (flyT >= VICTORY_FLYOUT_MAX_MS || (flyT >= VICTORY_FLYOUT_MIN_MS && shipGone)) {
+          victoryState = 'ui';
+          openMissionCompleteOverlay();
+        }
       }
       victorySparks.forEach(s => {
         s.life += rawDt * 1000;
@@ -1112,8 +1130,11 @@
       });
       victorySparks = victorySparks.filter(s => s.life < s.maxLife);
       if (victoryState === 'flyout') {
-        playerX += (targetPlayerX - playerX) * 0.088 * dt;
-        playerY += (targetPlayerY - playerY) * 0.074 * dt;
+        const flyElapsed = now - victoryPhaseStartAt;
+        const launchRamp = Math.min(1, flyElapsed / 520);
+        const ease = 0.74 + 0.26 * launchRamp;
+        playerX += (targetPlayerX - playerX) * VICTORY_FLYOUT_X_LERP * dt * ease;
+        playerY += (targetPlayerY - playerY) * VICTORY_FLYOUT_Y_LERP * dt * ease;
       }
       explosions.forEach(ex => { ex.t += 16; });
       explosions = explosions.filter(ex => ex.t < ex.duration);
@@ -1156,8 +1177,6 @@
       wave1IntroStartAt = now;
       wave1IntroEndAt = now + WAVE1_TITLE_MS + 3 * WAVE1_COUNTDOWN_DIGIT_MS;
     }
-    playerCombatEnabled =
-      (!firstWaveSpawnPending || (wave1IntroEndAt !== null && now >= wave1IntroEndAt)) && !victoryState;
     if (recentlyHitMs > 0) {
       recentlyHitMs = Math.max(0, recentlyHitMs - rawDt * 1000);
     }
@@ -1166,7 +1185,7 @@
       if (chainTimerMs === 0) chainCount = 0;
     }
 
-    if (!runEnded && playerCombatEnabled && currentWeapon === WEAPON_LASER) {
+    if (!runEnded && waveCombatUnlocked && !victoryState && currentWeapon === WEAPON_LASER) {
       if (now - lastFire > FIRE_INTERVAL_MS) {
         lastFire = now;
         if (laserTurretPattern === LASER_PATTERN_SINGLE) addProjectileSingle();
@@ -1320,6 +1339,7 @@
 
     if (currentWeapon === WEAPON_LASER) {
       projectiles = projectiles.filter(p => {
+        if (victoryState) return false;
         let hit = false;
         enemies = enemies.filter(e => {
           const px = p.x + p.w / 2;
@@ -1351,7 +1371,7 @@
       });
     }
 
-    if (playerCombatEnabled && currentWeapon === WEAPON_FIRE) {
+    if (!runEnded && waveCombatUnlocked && !victoryState && currentWeapon === WEAPON_FIRE) {
       const s = getShipDrawScale();
       const totalShipH = (SHIP_H + 56) * s;
       const streamOriginY = getShipCenterY() - totalShipH / 2;
@@ -1393,7 +1413,7 @@
       });
     }
 
-    if (playerCombatEnabled && currentWeapon === WEAPON_ELECTRIC) {
+    if (!runEnded && waveCombatUnlocked && !victoryState && currentWeapon === WEAPON_ELECTRIC) {
       const shipX = width * playerX;
       const shipY = getShipCenterY();
       const s = getShipDrawScale();
@@ -1526,12 +1546,26 @@
         return true;
       });
     }
+
+    playerCombatEnabled = waveCombatUnlocked && !victoryState;
   }
 
   const SHIP_SCALE = 0.56 * 0.9;
 
   function getShipDrawScale() {
     return shipUpgraded ? SHIP_SCALE * UPGRADED_SHIP_SCALE : SHIP_SCALE;
+  }
+
+  /** True when entire ship (and tilt slack) is above the top of the canvas. */
+  function isVictoryShipFullyOffTop() {
+    const cy = getShipCenterY();
+    const s = getShipDrawScale();
+    const halfH = ((SHIP_H + 56) * s) / 2;
+    const halfW = (SHIP_W * s) / 2;
+    const tilt = Math.abs(getShipTiltAngle());
+    const bottomSlack = Math.sin(tilt) * halfW * 0.45;
+    const margin = 48;
+    return cy + halfH + bottomSlack < -margin;
   }
 
   function noise1(t, seed) {
@@ -2484,7 +2518,7 @@
   function drawVictoryAwesome(now) {
     if (victoryState !== 'flyout') return;
     const elapsed = now - victoryPhaseStartAt;
-    const u = Math.min(1, elapsed / (VICTORY_FLYOUT_MS * 0.38));
+    const u = Math.min(1, elapsed / (VICTORY_FLYOUT_MIN_MS * 1.1));
     const alpha = u < 0.18 ? u / 0.18 : Math.max(0, 1 - (u - 0.48) / 0.52);
     ctx.save();
     ctx.textAlign = 'center';
@@ -2697,15 +2731,17 @@
     drawNebulae();
     drawRipples();
     drawFlankingBlur();
-    drawProjectiles();
-    drawEnemyBullets();
+    if (!victoryState) {
+      drawProjectiles();
+      drawEnemyBullets();
+    }
     drawEnemies();
     drawExplosions();
     drawVictorySparks();
     drawPickups();
     drawShip();
-    if (playerCombatEnabled && currentWeapon === WEAPON_FIRE) drawFireBlasterStream();
-    if (playerCombatEnabled && currentWeapon === WEAPON_ELECTRIC) drawElectricShock();
+    if (!victoryState && playerCombatEnabled && currentWeapon === WEAPON_FIRE) drawFireBlasterStream();
+    if (!victoryState && playerCombatEnabled && currentWeapon === WEAPON_ELECTRIC) drawElectricShock();
     if (firstWaveSpawnPending && wave1IntroStartAt != null && now < wave1IntroEndAt) {
       drawWave1Pregame(now);
     } else if (briefCenterTitle && now < briefCenterTitle.until) {
